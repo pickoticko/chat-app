@@ -3,7 +3,7 @@
 -export([
   start_server/1,
   start_client/3,
-  send_message/2, send_message/3
+  send_message/2
 ]).
 
 %% Starts the chat server
