@@ -12,13 +12,10 @@ start_server(Port) ->
 
 %% Connects to the chat server
 start_client(Address, Port, Username) ->
-  IPv4 = inet:parse_address(Address),
+  {ok, IPv4} = inet:parse_address(Address),
   {ok, Socket} = gen_tcp:connect(IPv4, Port, [binary, {active, false}]),
-  gen_tcp:send(Socket, "connect" ++ Username),
+  gen_tcp:send(Socket, "connect:" ++ Username),
   Socket.
 
 send_message(Client, Message) ->
-  gen_tcp:send(Client, "send" ++ Message).
-
-send_message(Client, Receiver, Message) ->
-  gen_tcp:send(Client, "private:" ++ Receiver ++ ":" ++ Message).
+  gen_tcp:send(Client, "send:" ++ Message).
