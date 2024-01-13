@@ -16,7 +16,7 @@
   code_change/3
 ]).
 
--define(TCP_OPTIONS, [
+-define(DEFAULT_TCP_OPTIONS, [
   binary,
   {packet, 0},
   {active, false},
@@ -44,7 +44,7 @@ init(State = #state{
   port = Port
 }) ->
   ?LOGINFO("Listening for incoming connections..."),
-  case gen_tcp:listen(Port, ?TCP_OPTIONS) of
+  case gen_tcp:listen(Port, ?DEFAULT_TCP_OPTIONS) of
     {ok, ListenSocket} ->
       {ok, accept(State#state{listen_socket = ListenSocket})};
     {error, Reason} ->

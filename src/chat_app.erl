@@ -19,11 +19,14 @@ start_client(Address, Port) ->
   {ok, Socket} = gen_tcp:connect(IPv4, Port, [binary, {active, false}]),
   Socket.
 
+%% Join to the chat
 connect(Socket, Username) ->
   gen_tcp:send(Socket, "connect:" ++ Username).
 
+%% Disconnect from the chat
 disconnect(Socket) ->
   gen_tcp:send(Socket, "leave").
 
+%% Send message to the chat
 send_message(Client, Message) ->
   gen_tcp:send(Client, "send:" ++ Message).
