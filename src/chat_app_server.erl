@@ -18,7 +18,7 @@
 -define(TCP_OPTIONS, [binary, {packet, 0}, {active, false}, {reuseaddr, true}]).
 
 -record(state, {
-  clients,
+  handler,
   port,
   loop,
   ip = any,
@@ -26,15 +26,11 @@
 }).
 
 start_link(ServerName, Port, LoopFun) ->
+  {ok, Handler} = chat_app_handler:start_link(),
   State = #state{
     port = Port,
     loop = LoopFun,
-    clients = ets:new(clients, [
-      set,
-      public,
-      {read_concurrency, true},
-      {write_concurrency, auto}
-    ])
+    handler = Handler
   },
   gen_server:start_link({local, ServerName}, ?MODULE, State, []).
 
@@ -50,43 +46,24 @@ init(State = #state{
 
 accept(State = #state{
   listen_socket = ListenSocket,
-  loop = LoopFun
+  loop = LoopFun,
+  handler = Handler
 }) ->
   Self = self(),
-  _PID = spawn(fun() -> acceptor_loop(Self, ListenSocket, LoopFun) end),
+  spawn(fun() -> acceptor_loop(Self, Handler, ListenSocket, LoopFun) end),
   State.
 
-acceptor_loop(Server, ListenSocket, LoopFun) ->
+acceptor_loop(Server, Handler, ListenSocket, LoopFun) ->
   {ok, ClientSocket} = gen_tcp:accept(ListenSocket),
-  gen_server:cast(Server, {client_accepted, self()}),
+  gen_server:cast(Server, {client_accepted, ClientSocket}),
   {Module, Function} = LoopFun,
-  Module:Function(Server, ClientSocket).
+  Module:Function(Handler, ClientSocket).
 
-handle_cast({client_accepted, _PID}, State) ->
+handle_cast({client_accepted, _ClientSocket}, State) ->
   {noreply, accept(State)};
-
-handle_cast({send, Sender, Message}, State = #state{clients = Clients}) ->
-  SendFunction =
-    fun({Receiver, _Username}, _) ->
-      case Receiver =/= Sender of
-        true -> gen_tcp:send(Receiver, Message);
-        false -> ok
-      end
-    end,
-  ets:foldl(SendFunction, none, Clients),
-  {noreply, State};
 
 handle_cast(_Msg, State) ->
   {noreply, State}.
-
-handle_call({client_connected, ClientSocket, Username}, _From, State = #state{clients = Clients}) ->
-  case ets:lookup(Clients, ClientSocket) of
-    [] ->
-      ets:insert(Clients, {ClientSocket, Username}),
-      {reply, ok, State};
-    [_Exists] ->
-      {reply, already_exists, State}
-  end;
 
 handle_call(_Request, _From, State) ->
   {reply, ignored, State}.
