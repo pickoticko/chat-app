@@ -10,6 +10,7 @@
 
 %% Starts the chat server
 start_server(Port) ->
+  logger:set_primary_config(level, info),
   chat_app_server:start_link(?MODULE, Port, {chat_app_receiver, init}).
 
 %% Connects to the chat server

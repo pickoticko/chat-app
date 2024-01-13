@@ -1,6 +1,8 @@
 -module(chat_app_server).
 -behaviour(gen_server).
 
+-include("chat_app.hrl").
+
 -export([
   start_link/3
 ]).
@@ -37,6 +39,7 @@ start_link(ServerName, Port, LoopFun) ->
 init(State = #state{
   port = Port
 }) ->
+  ?LOGINFO("Listening for incoming connections..."),
   case gen_tcp:listen(Port, ?TCP_OPTIONS) of
     {ok, ListenSocket} ->
       {ok, accept(State#state{listen_socket = ListenSocket})};

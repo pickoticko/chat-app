@@ -1,6 +1,8 @@
 -module(chat_app_handler).
 -behaviour(gen_server).
 
+-include("chat_app.hrl").
+
 -export([
   start_link/0
 ]).
@@ -33,19 +35,20 @@ init(State) ->
   }}.
 
 handle_cast({send, Sender, Message}, State = #state{clients = Clients}) ->
-  SendFunction =
-    fun({Receiver, _Username}, _) ->
-      case Sender =/= Receiver of
-        true -> gen_tcp:send(Receiver, Message);
-        false -> ok
-      end
-    end,
-  ets:foldl(SendFunction, none, Clients),
-  {noreply, State};
-
-handle_cast({leave, Socket}, State = #state{clients = Clients}) ->
-  gen_tcp:close(Socket),
-  ets:delete(Clients, Socket),
+  case get_username(Clients, Sender) of
+    none ->
+      ignore;
+    SenderUsername ->
+      ?LOGINFO("[~p] ~p sent the message: ~p", [Sender, binary_to_list(SenderUsername), binary_to_list(Message)]),
+      SendFunction =
+        fun({Receiver, Username}, _) ->
+          case (Sender =/= Receiver) orelse (SenderUsername =/= Username) of
+            true -> gen_tcp:send(Receiver, Message);
+            false -> ok
+          end
+        end,
+      ets:foldl(SendFunction, none, Clients)
+  end,
   {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -54,7 +57,7 @@ handle_cast(_Msg, State) ->
 handle_call({connect, Socket, Username}, _From, State = #state{clients = Clients}) ->
   case ets:lookup(Clients, Socket) of
     [] ->
-      io:format("~p joined the chat.~n", [binary_to_list(Username)]),
+      ?LOGINFO("[~p] ~p joined the chat.", [Socket, binary_to_list(Username)]),
       ets:insert(Clients, {Socket, Username}),
       {reply, ok, State};
     [{_Key, Value}] when Value =:= Username ->
@@ -64,8 +67,10 @@ handle_call({connect, Socket, Username}, _From, State = #state{clients = Clients
 handle_call({disconnect, Socket}, _From, State = #state{clients = Clients}) ->
   case ets:member(Clients, Socket) of
     true ->
+      Username = get_username(Clients, Socket),
       gen_tcp:close(Socket),
       ets:delete(Clients, Socket),
+      ?LOGINFO("[~p] ~p left the chat.", [Socket, binary_to_list(Username)]),
       {reply, ok, State};
     false ->
       {reply, already_disconnected, State}
@@ -82,3 +87,9 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
+
+get_username(Clients, Socket) ->
+  case ets:lookup(Clients, Socket) of
+    [] -> none;
+    [{Socket, Username}] -> Username
+  end.

@@ -1,6 +1,5 @@
 -module(chat_app_receiver).
 
-%% API
 -export([init/2]).
 
 init(Handler, ClientSocket) ->
@@ -26,7 +25,6 @@ loop(Handler, ClientSocket) ->
     {ok, Packet} ->
       case Packet of
         <<"send:", Message/binary>> ->
-          io:format("Client ~p sent the message: ~p~n", [ClientSocket, binary_to_list(Message)]),
           gen_server:cast(Handler, {send, ClientSocket, Message}),
           loop(Handler, ClientSocket);
         <<"leave">> ->
