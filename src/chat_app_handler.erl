@@ -48,6 +48,11 @@ init(State) ->
     ])
   }}.
 
+handle_cast({error, Reason, Socket}, State = #state{clients = Clients}) ->
+  gen_tcp:close(Socket),
+  ?LOGERROR("Socket error: ~p", [Reason]),
+  {stop, Reason, State};
+
 handle_cast({send, Sender, Message}, State = #state{clients = Clients}) ->
   case get_username(Clients, Sender) of
     none ->
@@ -101,7 +106,7 @@ handle_call({disconnect, Socket}, _From, State = #state{clients = Clients}) ->
       ?LOGINFO("[~p] ~s left the chat.", [Socket, binary_to_list(Username)]),
       {reply, ok, State};
     false ->
-      {reply, already_disconnected, State}
+      {reply, invalid_socket, State}
   end;
 
 handle_call(_Request, _From, State) ->

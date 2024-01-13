@@ -58,8 +58,7 @@ handle_call({connect, PID, Username}, _From, State = #client{pid = PID}) ->
   send_message("connect:" ++ Username, State);
 
 handle_call({disconnect, PID}, _From, State = #client{pid = PID}) ->
-  send_message("disconnect", State),
-  {stop, disconnected, State};
+  send_message("disconnect", State);
 
 handle_call({send, PID, Message}, _From, State = #client{pid = PID}) ->
   case length(Message) > 0 of

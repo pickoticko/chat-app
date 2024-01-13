@@ -36,28 +36,27 @@ init(State = #client{
         <<"connect:", Username/binary>> ->
           case gen_server:call(Handler, {connect, Socket, Username}) of
             %% User is accepted, enter the loop
-            ok ->
-              loop(State);
+            ok -> loop(State);
             %% User is rejected, already in the chat
-            {error, _Error} ->
-              init(State)
+            {error, _Error} -> init(State)
           end;
         _UnexpectedMessage ->
           init(State)
       end;
-    {error, closed} ->
-      ok
+    {error, Reason} ->
+      gen_server:cast(Handler, {error, Reason, Socket})
   end.
 
 loop(State = #client{
+  handler = Handler,
   socket = Socket
 }) ->
   case gen_tcp:recv(Socket, 0) of
     {ok, Packet} ->
       handle_packet(Packet, State),
       loop(State);
-    {error, closed} ->
-      ok
+    {error, Reason} ->
+      gen_server:cast(Handler, {error, Reason, Socket})
   end.
 
 %% +--------------------------------------------------------------+
