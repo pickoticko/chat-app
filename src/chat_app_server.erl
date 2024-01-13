@@ -32,11 +32,10 @@
 }).
 
 start_link(ServerName, Port, LoopFun) ->
-  {ok, Handler} = chat_app_handler:start_link(),
+  logger:set_primary_config(level, info),
   State = #state{
     port = Port,
-    loop = LoopFun,
-    handler = Handler
+    loop = LoopFun
   },
   gen_server:start_link({local, ServerName}, ?MODULE, State, []).
 
@@ -46,7 +45,11 @@ init(State = #state{
   ?LOGINFO("Listening for incoming connections..."),
   case gen_tcp:listen(Port, ?DEFAULT_TCP_OPTIONS) of
     {ok, ListenSocket} ->
-      {ok, accept(State#state{listen_socket = ListenSocket})};
+      {ok, Handler} = chat_app_handler:start_link(),
+      {ok, accept(State#state{
+        listen_socket = ListenSocket,
+        handler = Handler
+      })};
     {error, Reason} ->
       {stop, Reason}
   end.
@@ -63,6 +66,7 @@ accept(State = #state{
 acceptor_loop(Server, Handler, ListenSocket, LoopFun) ->
   {ok, ClientSocket} = gen_tcp:accept(ListenSocket),
   gen_server:cast(Server, {client_accepted, ClientSocket}),
+  gen_tcp:send(ClientSocket, "Connection accepted, waiting for join request..."),
   {Module, Function} = LoopFun,
   Module:Function(Handler, ClientSocket).
 
