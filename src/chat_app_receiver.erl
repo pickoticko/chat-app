@@ -1,38 +1,69 @@
 -module(chat_app_receiver).
+-include("chat_app.hrl").
 
 -export([init/2]).
 
-init(Handler, ClientSocket) ->
-  case gen_tcp:recv(ClientSocket, 0) of
+-record(client, {
+  handler,
+  socket
+}).
+
+init(Handler, Socket) ->
+  init(#client{
+    handler = Handler,
+    socket = Socket
+  }).
+
+init(State = #client{
+  handler = Handler,
+  socket = Socket
+}) ->
+  case gen_tcp:recv(Socket, 0) of
     {ok, Packet} ->
       case Packet of
         <<"connect:", Username/binary>> ->
-          case gen_server:call(Handler, {connect, ClientSocket, Username}) of
+          case gen_server:call(Handler, {connect, Socket, Username}) of
+            %% User is accepted, enter the loop
             ok ->
-              loop(Handler, ClientSocket);
+              loop(State);
+            %% User is rejected, already in the chat
             {error, _Error} ->
-              init(Handler, ClientSocket)
+              init(State)
           end;
         _UnexpectedMessage ->
-          init(Handler, ClientSocket)
+          init(State)
       end;
     {error, closed} ->
       ok
   end.
 
-loop(Handler, ClientSocket) ->
-  case gen_tcp:recv(ClientSocket, 0) of
+loop(State = #client{
+  socket = Socket
+}) ->
+  case gen_tcp:recv(Socket, 0) of
     {ok, Packet} ->
-      case Packet of
-        <<"send:", Message/binary>> ->
-          gen_server:cast(Handler, {send, ClientSocket, Message}),
-          loop(Handler, ClientSocket);
-        <<"leave">> ->
-          case gen_server:call(Handler, {disconnect, ClientSocket}) of
-            ok -> ok;
-            already_disconnected -> ok
-          end
-      end;
+      handle_packet(Packet, State),
+      loop(State);
     {error, closed} ->
       ok
   end.
+
+handle_packet(<<"send:", Message/binary>>, #client{
+  handler = Handler,
+  socket = Socket
+}) ->
+  gen_server:cast(Handler, {send, Socket, Message});
+
+handle_packet(<<"disconnect">>, #client{
+  handler = Handler,
+  socket = Socket
+}) ->
+  case gen_server:call(Handler, {disconnect, Socket}) of
+    ok -> ok;
+    already_disconnected -> ok
+  end;
+
+handle_packet(UnexpectedCommand, #client{
+  socket = Socket
+}) ->
+  ?LOGWARNING("[~p] sent unexpected command: ~p", [Socket, UnexpectedCommand]).

@@ -1,6 +1,5 @@
 -module(chat_app_server).
 -behaviour(gen_server).
-
 -include("chat_app.hrl").
 
 -export([
@@ -17,14 +16,19 @@
   code_change/3
 ]).
 
--define(TCP_OPTIONS, [binary, {packet, 0}, {active, false}, {reuseaddr, true}]).
+-define(TCP_OPTIONS, [
+  binary,
+  {packet, 0},
+  {active, false},
+  {reuseaddr, true}
+]).
 
 -record(state, {
-  handler,
-  port,
-  loop,
-  ip = any,
-  listen_socket = null
+  handler = undefined,
+  loop = undefined,
+  listen_socket = null,
+  port = null,
+  ip = any
 }).
 
 start_link(ServerName, Port, LoopFun) ->
