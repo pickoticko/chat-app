@@ -73,7 +73,8 @@ handle_info({message, PID, Packet}, State = #client{receiver = PID}) ->
   ?LOGINFO("~s", [binary_to_list(Packet)]),
   {noreply, State};
 
-handle_info({error, PID, Reason}, State = #client{receiver = PID}) ->
+handle_info({error, PID, Reason}, State = #client{receiver = PID, socket = Socket}) ->
+  ?LOGINFO("Socket [~p] error: ~p", [Socket, Reason]),
   {stop, Reason, State};
 
 handle_info(_Info, State) ->

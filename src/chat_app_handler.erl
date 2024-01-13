@@ -48,7 +48,7 @@ init(State) ->
     ])
   }}.
 
-handle_cast({error, Reason, Socket}, State = #state{clients = Clients}) ->
+handle_cast({error, Reason, Socket}, State) ->
   gen_tcp:close(Socket),
   ?LOGERROR("Socket error: ~p", [Reason]),
   {stop, Reason, State};
